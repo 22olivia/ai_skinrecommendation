@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DermAI — Clinical Skin Analysis Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-root:    #070B0F;
+    --bg-panel:   #0C1117;
+    --bg-card:    #111820;
+    --bg-card2:   #141D27;
+    --border:     #1C2A38;
+    --border-hi:  #243447;
+    --teal:       #14B8A6;
+    --teal-dim:   rgba(20,184,166,.12);
+    --teal-glow:  rgba(20,184,166,.25);
+    --emerald:    #10B981;
+    --amber:      #F59E0B;
+    --red:        #EF4444;
+    --text-1:     #E8EDF2;
+    --text-2:     #8A9BB0;
+    --text-3:     #4A5E72;
+    --mono:       'JetBrains Mono', monospace;
+  }
+  html, body { height: 100%; background: var(--bg-root); color: var(--text-1); font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; overflow: hidden; }
+
+  /* AUTH */
+  .auth-overlay { position: fixed; inset: 0; background: var(--bg-root); z-index: 9999; display: flex; align-items: center; justify-content: center; transition: opacity 0.4s cubic-bezier(.4,0,.2,1); }
+  .auth-overlay.hidden { opacity: 0; pointer-events: none; }
+  .auth-card { width: 360px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 18px; }
+  .auth-header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-label { font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+  .auth-input { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; color: var(--text-1); font-family: 'Inter', sans-serif; font-size: 13px; transition: border-color 0.2s; }
+  .auth-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 8px var(--teal-dim); }
+  .btn-login { background: var(--teal); color: #041412; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 12px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-top: 6px; }
+  .btn-login:hover { background: #0fd4c0; box-shadow: 0 0 15px var(--teal-glow); }
+  .auth-error { color: var(--red); font-size: 11px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); padding: 8px 10px; border-radius: 4px; display: none; text-align: center; }
+  .auth-links { display: flex; justify-content: space-between; margin-top: 4px; }
+  .auth-link { font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 500; letter-spacing: .08em; color: var(--teal); cursor: pointer; background: none; border: none; padding: 0; transition: color .2s; }
+  .auth-link:hover { color: #0fd4c0; text-decoration: underline; }
+  .auth-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .auth-divider span { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .1em; text-transform: uppercase; }
+
+  /* SHELL */
+  .shell { display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 1fr 390px; grid-template-areas: "header header" "main panel"; height: 100vh; }
+  header { grid-area: header; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--bg-panel); border-bottom: 1px solid var(--border); position: relative; z-index: 10; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.18em; color: var(--text-1); }
+  .brand-name span { color: var(--teal); }
+  .brand-tag { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .1em; margin-top: 1px; }
+  nav { display: flex; align-items: center; gap: 6px; }
+  .nav-link { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); padding: 5px 14px; border-radius: 4px; border: 1px solid transparent; cursor: pointer; transition: all .2s; background: none; }
+  .nav-link:hover { color: var(--text-1); border-color: var(--border-hi); background: var(--bg-card); }
+  .nav-link.active { color: var(--teal); border-color: var(--teal); background: var(--teal-dim); }
+  .profile-badge { display: flex; align-items: center; gap: 9px; padding: 5px 12px 5px 5px; border: 1px solid var(--border); border-radius: 24px; cursor: pointer; transition: border-color .2s; margin-left: 12px; }
+  .profile-badge:hover { border-color: var(--border-hi); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #14B8A6, #0891B2); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 700; color: #fff; }
+  .profile-name { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; color: var(--text-2); }
+
+  main { grid-area: main; display: flex; flex-direction: column; padding: 20px 20px 20px 24px; gap: 14px; overflow: hidden; }
+  .viewport-wrap { flex: 1; position: relative; border: 1px solid var(--border); border-radius: 6px; background: #06090D; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  .bracket { position: absolute; width: 28px; height: 28px; z-index: 5; }
+  .bracket::before, .bracket::after { content: ''; position: absolute; background: var(--teal); }
+  .bracket::before { width: 100%; height: 2px; }
+  .bracket::after  { width: 2px; height: 100%; }
+  .bracket.tl { top: 16px; left: 16px; } .bracket.tl::before { top: 0; left: 0; } .bracket.tl::after  { top: 0; left: 0; }
+  .bracket.tr { top: 16px; right: 16px; transform: scaleX(-1); } .bracket.tr::before { top: 0; left: 0; } .bracket.tr::after  { top: 0; left: 0; }
+  .bracket.bl { bottom: 16px; left: 16px; transform: scaleY(-1); } .bracket.bl::before { top: 0; left: 0; } .bracket.bl::after  { top: 0; left: 0; }
+  .bracket.br { bottom: 16px; right: 16px; transform: scale(-1); } .bracket.br::before { top: 0; left: 0; } .bracket.br::after  { top: 0; left: 0; }
+  @keyframes bracketPulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+  .viewport-wrap.scanning .bracket { animation: bracketPulse 1.4s ease-in-out infinite; }
+  .scan-line { position: absolute; left: 16px; right: 16px; height: 1px; background: linear-gradient(90deg, transparent, var(--teal), transparent); opacity: 0; top: 20%; z-index: 5; }
+  @keyframes scanMove { 0% { top: 16px; opacity: 0; } 5% { opacity: .7; } 95% { opacity: .7; } 100% { top: calc(100% - 16px); opacity: 0; } }
+  .viewport-wrap.scanning .scan-line { animation: scanMove 2.2s ease-in-out infinite; }
+  .drop-zone { display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; transition: opacity .3s; z-index: 2; }
+  .drop-zone.hidden { opacity: 0; pointer-events: none; display: none !important; }
+  .drop-icon { width: 56px; height: 56px; border: 1.5px dashed var(--border-hi); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .drop-label { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 500; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
+  .drop-sub { font-size: 11px; color: var(--text-3); opacity: .6; }
+  #preview-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; opacity: .9; z-index: 1; }
+  #camera-stream { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 1; transform: scaleX(-1); }
+  .grid-overlay { position: absolute; inset: 0; background-image: linear-gradient(rgba(20,184,166,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(20,184,166,.04) 1px, transparent 1px); background-size: 32px 32px; pointer-events: none; z-index: 3; }
+  .coord { font-family: var(--mono); font-size: 9px; color: var(--teal); opacity: .5; letter-spacing: .06em; position: absolute; z-index: 4; }
+  .coord.tl { top: 48px; left: 20px; } .coord.br { bottom: 48px; right: 20px; text-align: right; }
+  .vp-status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 9px; color: var(--teal); letter-spacing: .12em; opacity: .7; text-transform: uppercase; white-space: nowrap; z-index: 4; }
+
+  /* RAW CONFIDENCE DEBUG BADGE */
+  #rawConfBadge { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 9px; color: var(--amber); background: rgba(0,0,0,0.6); border: 1px solid rgba(245,158,11,0.3); border-radius: 3px; padding: 3px 8px; z-index: 6; display: none; letter-spacing: .08em; }
+
+  .controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .btn { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-2); border-radius: 4px; padding: 8px 16px; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all .18s; white-space: nowrap; }
+  .btn:hover { border-color: var(--border-hi); color: var(--text-1); background: var(--bg-card2); }
+  .btn:active { transform: scale(.97); }
+  .btn-run { flex: 1; justify-content: center; background: var(--teal); border-color: var(--teal); color: #041412; font-weight: 700; font-size: 12px; padding: 10px 24px; position: relative; overflow: hidden; }
+  .btn-run::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.08), transparent); pointer-events: none; }
+  .btn-run:hover { background: #0fd4c0; border-color: #0fd4c0; box-shadow: 0 0 20px var(--teal-glow); }
+  .btn-run.analyzing { background: #0a6b63; border-color: #0a6b63; color: var(--teal); }
+  .btn-camera { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+  .btn-camera.active-cam { background: var(--red); border-color: var(--red); color: white; }
+  .alert-banner { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: rgba(245,158,11,.06); border: 1px solid rgba(245,158,11,.18); border-radius: 4px; flex-shrink: 0; }
+  .alert-icon { color: var(--amber); flex-shrink: 0; margin-top: 1px; }
+  .alert-text { font-size: 11px; color: var(--text-2); line-height: 1.6; }
+  .alert-text strong { color: var(--amber); font-weight: 500; }
+
+  /* PANEL */
+  .panel { grid-area: panel; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--text-2); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .r-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 12px 14px; }
+  .r-label { font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+  .condition-row { display: flex; align-items: center; gap: 10px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green  { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+  .dot-amber  { background: var(--amber);   box-shadow: 0 0 6px var(--amber); }
+  .dot-red    { background: var(--red);     box-shadow: 0 0 6px var(--red); }
+  .condition-name { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text-1); letter-spacing: .02em; }
+  .condition-sub { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .1em; margin-top: 3px; }
+  .conf-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .conf-pct { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--teal); }
+  .conf-bar-track { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .conf-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0891B2, var(--teal)); transition: width .8s cubic-bezier(.4,0,.2,1); }
+  .severity-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 3px; font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-top: 6px; }
+  .sev-none     { display: none; }
+  .sev-mild     { background: rgba(16,185,129,.12); color: var(--emerald); border: 1px solid rgba(16,185,129,.25); }
+  .sev-moderate { background: rgba(245,158,11,.12); color: var(--amber);   border: 1px solid rgba(245,158,11,.25); }
+  .sev-severe   { background: rgba(239,68,68,.12);  color: var(--red);     border: 1px solid rgba(239,68,68,.25); }
+  .notes-text { font-size: 12px; color: var(--text-2); line-height: 1.65; }
+  .remedy-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .remedy-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-2); }
+  .remedy-list li::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); flex-shrink: 0; margin-top: 5px; }
+  .product-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 7px; }
+  .product-item:last-child { margin-bottom: 0; }
+  .product-name { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; color: var(--text-1); }
+  .product-type { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .08em; margin-top: 2px; }
+  .product-tag { font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: .1em; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; }
+  .tag-gentle, .tag-otc { background: rgba(20,184,166,.12); color: var(--teal); }
+  .tag-rx, .tag-consult  { background: rgba(245,158,11,.12); color: var(--amber); }
+  .referral-card { display: flex; gap: 10px; padding: 11px; background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.22); border-radius: 4px; margin-top: 10px; }
+  .referral-text { font-size: 12px; color: var(--text-2); line-height: 1.55; }
+  .referral-text strong { color: var(--red); font-weight: 500; }
+  .btn-remedies { width: 100%; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 11px 16px; background: linear-gradient(135deg, var(--teal-dim), rgba(16,185,129,.08)); border: 1px solid var(--teal); border-radius: 5px; color: var(--teal); font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: all .2s; }
+  .btn-remedies:hover { background: linear-gradient(135deg, rgba(20,184,166,.2), rgba(16,185,129,.15)); box-shadow: 0 0 16px var(--teal-glow); }
+  .btn-remedies:active { transform: scale(.97); }
+  .panel-idle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; opacity: .35; }
+  .panel-idle.hidden { display: none; }
+  .idle-label { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { animation: spin .8s linear infinite; transform-origin: center; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .blink { animation: blink 1.2s ease-in-out infinite; }
+  #file-input { display: none; }
+
+  @media (max-width: 860px) {
+    body, html { overflow: auto; }
+    .shell { grid-template-columns: 1fr; grid-template-rows: 52px 1fr auto; grid-template-areas: "header" "main" "panel"; height: auto; }
+    .panel { border-left: none; border-top: 1px solid var(--border); }
+  }
+
+  /* REMEDIES OVERLAY */
+  .remedies-overlay { position: fixed; inset: 0; background: var(--bg-root); z-index: 9000; display: none; overflow: hidden; }
+  .remedies-overlay.open { display: flex; flex-direction: column; }
+  .remedies-screen { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .remedies-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: var(--bg-panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .remedies-header-left { display: flex; align-items: center; gap: 12px; }
+  .remedies-title { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-1); }
+  .remedies-subtitle { font-family: var(--mono); font-size: 10px; color: var(--teal); letter-spacing: .08em; margin-top: 2px; }
+  .btn-close-remedies { display: flex; align-items: center; gap: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 8px 16px; cursor: pointer; transition: all .2s; }
+  .btn-close-remedies:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-dim); }
+  .remedies-body { flex: 1; overflow-y: auto; padding: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-content: start; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+  .rem-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+  .rem-section.full { grid-column: 1 / -1; }
+  .rem-section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .rem-section-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rem-section-icon.teal { background: var(--teal-dim); color: var(--teal); }
+  .rem-section-icon.amber { background: rgba(245,158,11,.12); color: var(--amber); }
+  .rem-section-icon.red { background: rgba(239,68,68,.12); color: var(--red); }
+  .rem-section-icon.green { background: rgba(16,185,129,.12); color: var(--emerald); }
+  .rem-section-label { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-1); }
+  .rem-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .rem-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; color: var(--text-2); line-height: 1.65; }
+  .rem-list li::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 7px; }
+  .rem-list.teal li::before { background: var(--teal); }
+  .rem-list.amber li::before { background: var(--amber); }
+  .rem-list.red li::before { background: var(--red); }
+  .rem-list.green li::before { background: var(--emerald); }
+  .rem-product-grid { display: flex; flex-direction: column; gap: 8px; }
+  .rem-product { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 4px; }
+  .rem-product-name { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 500; color: var(--text-1); }
+  .rem-product-type { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .06em; margin-top: 2px; }
+  .rem-treatment-box { display: flex; align-items: center; gap: 10px; padding: 14px; background: var(--teal-dim); border: 1px solid rgba(20,184,166,.2); border-radius: 5px; margin-bottom: 10px; }
+  .rem-treatment-text { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; color: var(--teal); }
+  .rem-notes { font-size: 12.5px; color: var(--text-2); line-height: 1.7; }
+  .rem-referral { display: flex; gap: 10px; padding: 12px; background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.22); border-radius: 5px; margin-top: 12px; }
+  .rem-referral strong { color: var(--red); font-weight: 500; }
+  .rem-referral span { font-size: 12px; color: var(--text-2); line-height: 1.55; }
+
+  /* HISTORY OVERLAY */
+  .history-overlay { position: fixed; inset: 0; background: var(--bg-root); z-index: 9000; display: none; overflow: hidden; }
+  .history-overlay.open { display: flex; flex-direction: column; }
+  .history-body { flex: 1; overflow-y: auto; padding: 28px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .history-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; cursor: pointer; transition: all .2s; position: relative; overflow: hidden; }
+  .history-card:hover { border-color: var(--teal); box-shadow: 0 0 20px var(--teal-dim); transform: translateY(-2px); }
+  .history-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .history-card-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+  .history-card-date { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .08em; }
+  .history-card-label { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; line-height: 1.3; }
+  .history-card-icd { font-family: var(--mono); font-size: 9px; color: var(--text-3); letter-spacing: .06em; margin-bottom: 10px; }
+  .history-card-conf { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .history-card-conf-pct { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--teal); }
+  .history-card-conf-track { flex: 1; height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .history-card-conf-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0891B2, var(--teal)); }
+  .history-card-sev { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 3px; font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .history-card-sev.sev-mild { background: rgba(16,185,129,.12); color: var(--emerald); border: 1px solid rgba(16,185,129,.25); }
+  .history-card-sev.sev-moderate { background: rgba(245,158,11,.12); color: var(--amber); border: 1px solid rgba(245,158,11,.25); }
+  .history-card-sev.sev-severe { background: rgba(239,68,68,.12); color: var(--red); border: 1px solid rgba(239,68,68,.25); }
+  .history-card-sev.sev-none { background: rgba(16,185,129,.08); color: var(--emerald); border: 1px solid rgba(16,185,129,.15); }
+  .history-card-img { position: absolute; bottom: 0; right: 0; width: 80px; height: 80px; object-fit: cover; opacity: .15; border-radius: 0 0 6px 0; }
+  .history-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 60vh; opacity: .4; }
+  .history-empty-label { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+
+  /* PRODUCTS OVERLAY */
+  .products-overlay { position: fixed; inset: 0; background: var(--bg-root); z-index: 9100; display: none; overflow: hidden; }
+  .products-overlay.open { display: flex; flex-direction: column; }
+  .products-body { flex: 1; overflow-y: auto; padding: 28px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .products-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .products-breadcrumb span { font-family: var(--mono); font-size: 10px; color: var(--text-3); letter-spacing: .08em; }
+  .products-breadcrumb .bc-active { color: var(--teal); }
+  .products-breadcrumb .bc-sep { color: var(--text-3); opacity: .4; }
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .cat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 20px; cursor: pointer; transition: all .25s; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+  .cat-card:hover { border-color: var(--teal); background: var(--teal-dim); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .cat-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--teal-dim); display: flex; align-items: center; justify-content: center; }
+  .cat-name { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-1); letter-spacing: .04em; }
+  .product-list { display: flex; flex-direction: column; gap: 10px; }
+  .product-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; transition: all .2s; }
+  .product-row:hover { border-color: var(--border-hi); background: var(--bg-card2); }
+  .product-store-badge { font-family: 'Space Grotesk', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 4px 10px; border-radius: 3px; color: white; flex-shrink: 0; min-width: 70px; text-align: center; }
+  .product-info { flex: 1; min-width: 0; }
+  .product-title { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 500; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .product-desc { font-size: 10px; color: var(--text-3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn-compare { font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--teal); background: var(--teal-dim); color: var(--teal); cursor: pointer; transition: all .2s; flex-shrink: 0; white-space: nowrap; }
+  .btn-compare:hover { background: var(--teal); color: #041412; }
+  .btn-buy { font-family: 'Space Grotesk', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--emerald); background: rgba(16,185,129,.12); color: var(--emerald); cursor: pointer; transition: all .2s; flex-shrink: 0; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+  .btn-buy:hover { background: var(--emerald); color: #041412; }
+  .compare-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  .compare-store { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .compare-store-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .compare-store-name { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .compare-results { display: flex; flex-direction: column; gap: 8px; }
+  .compare-item { padding: 10px; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 4px; }
+  .compare-item-title { font-size: 11px; color: var(--text-1); line-height: 1.4; }
+  .compare-item-snippet { font-size: 10px; color: var(--text-3); margin-top: 4px; line-height: 1.4; }
+  .compare-loading { display: flex; align-items: center; gap: 10px; padding: 30px; justify-content: center; color: var(--text-3); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; }
+  .back-btn { display: flex; align-items: center; gap: 6px; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; color: var(--text-2); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: all .2s; margin-bottom: 16px; }
+  .back-btn:hover { border-color: var(--teal); color: var(--teal); }
+</style>
+</head>
+<body>
+
+<div class="auth-overlay" id="authGateway">
+  <div class="auth-card">
+    <div class="auth-header">
+      <svg width="36" height="36" viewBox="0 0 30 30" fill="none">
+        <path d="M15 2L27 8.5V21.5L15 28L3 21.5V8.5L15 2Z" stroke="#14B8A6" stroke-width="1.5" fill="none"/>
+        <circle cx="15" cy="15" r="3" fill="#14B8A6"/>
+      </svg>
+      <div class="brand-name" style="font-size:20px">DERM<span>AI</span></div>
+      <div class="input-label" style="color:var(--text-3)">Clinical Authorization Required</div>
+    </div>
+    <div class="auth-error" id="authError">Invalid System Credentials</div>
+    <div class="input-group">
+      <label class="input-label">Clinical Username</label>
+      <input type="text" id="usernameInput" class="auth-input" placeholder="e.g., Olivia" autofocus>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Email Address</label>
+      <input type="email" id="emailInput" class="auth-input" placeholder="you@example.com">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Security Keyphrase</label>
+      <input type="password" id="passwordInput" class="auth-input" placeholder="••••••••">
+    </div>
+    <button class="btn-login" onclick="handleAuthentication()">Authenticate Portal</button>
+    <div class="auth-links">
+      <button class="auth-link" onclick="showOverlay('registerOverlay')">Register</button>
+      <button class="auth-link" onclick="showOverlay('resetOverlay')">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<div class="auth-overlay hidden" id="registerOverlay">
+  <div class="auth-card">
+    <div class="auth-header">
+      <svg width="36" height="36" viewBox="0 0 30 30" fill="none">
+        <path d="M15 2L27 8.5V21.5L15 28L3 21.5V8.5L15 2Z" stroke="#14B8A6" stroke-width="1.5" fill="none"/>
+        <circle cx="15" cy="15" r="3" fill="#14B8A6"/>
+      </svg>
+      <div class="brand-name" style="font-size:20px">DERM<span>AI</span></div>
+      <div class="input-label" style="color:var(--text-3)">Create Clinical Account</div>
+    </div>
+    <div class="auth-error" id="regError"></div>
+    <div class="input-group">
+      <label class="input-label">Username</label>
+      <input type="text" id="regUsername" class="auth-input" placeholder="Choose a username">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Email Address</label>
+      <input type="email" id="regEmail" class="auth-input" placeholder="you@example.com">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Password</label>
+      <input type="password" id="regPassword" class="auth-input" placeholder="••••••••">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Confirm Password</label>
+      <input type="password" id="regConfirm" class="auth-input" placeholder="••••••••">
+    </div>
+    <button class="btn-login" onclick="handleRegister()">Create Account</button>
+    <div class="auth-links" style="justify-content:center;">
+      <button class="auth-link" onclick="showOverlay('authGateway')">Already have an account? Login</button>
+    </div>
+  </div>
+</div>
+
+<div class="auth-overlay hidden" id="resetOverlay">
+  <div class="auth-card">
+    <div class="auth-header">
+      <svg width="36" height="36" viewBox="0 0 30 30" fill="none">
+        <path d="M15 2L27 8.5V21.5L15 28L3 21.5V8.5L15 2Z" stroke="#14B8A6" stroke-width="1.5" fill="none"/>
+        <circle cx="15" cy="15" r="3" fill="#14B8A6"/>
+      </svg>
+      <div class="brand-name" style="font-size:20px">DERM<span>AI</span></div>
+      <div class="input-label" style="color:var(--text-3)">Password Recovery</div>
+    </div>
+    <div class="auth-error" id="resetError"></div>
+    <div class="auth-error" id="resetSuccess" style="display:none;color:var(--emerald);background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.2);"></div>
+    <div class="input-group">
+      <label class="input-label">Email Address</label>
+      <input type="email" id="resetEmail" class="auth-input" placeholder="you@example.com">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Username</label>
+      <input type="text" id="resetUsername" class="auth-input" placeholder="Your username">
+    </div>
+    <div class="input-group">
+      <label class="input-label">New Password</label>
+      <input type="password" id="resetPassword" class="auth-input" placeholder="••••••••">
+    </div>
+    <button class="btn-login" onclick="handleReset()">Reset Password</button>
+    <div class="auth-links" style="justify-content:center;">
+      <button class="auth-link" onclick="showOverlay('authGateway')">Back to Login</button>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div>
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <path d="M15 2L27 8.5V21.5L15 28L3 21.5V8.5L15 2Z" stroke="#14B8A6" stroke-width="1.5" fill="none"/>
+          <path d="M15 6L23 10.5V19.5L15 24L7 19.5V10.5L15 6Z" fill="rgba(20,184,166,.1)" stroke="#14B8A6" stroke-width=".5"/>
+          <circle cx="15" cy="15" r="3" fill="#14B8A6"/><circle cx="15" cy="15" r="1.5" fill="#041412"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">DERM<span>AI</span></div>
+        <div class="brand-tag">CLINICAL ANALYSIS SYSTEM v3.0 · 21-CLASS MODEL</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <nav>
+        <button class="nav-link active">Scanner</button>
+        <button class="nav-link" onclick="handleLogout()" style="color:var(--red);border-color:transparent;">Logout</button>
+      </nav>
+      <div class="profile-badge">
+        <div class="avatar">OJ</div>
+        <span class="profile-name">Olivia Joyson</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="viewport-wrap" id="viewport" ondragover="onDragOver(event)" ondrop="onDrop(event)">
+      <div class="grid-overlay"></div>
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <div class="scan-line" id="scanLine"></div>
+      <div class="coord tl" id="coordTL">X:000  Y:000</div>
+      <div class="coord br" id="coordBR">RES --×-- · RGB</div>
+      <div class="vp-status" id="vpStatus">STANDBY — AWAITING INPUT</div>
+      <div id="rawConfBadge">RAW SOFTMAX: --</div>
+      <img id="preview-img" alt="skin preview"/>
+      <video id="camera-stream" autoplay playsinline></video>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4A5E72" stroke-width="1.5">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="2"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        </div>
+        <div class="drop-label">Drop image or use Controls</div>
+        <div class="drop-sub">PNG · JPG · WEBP — max 12MB</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="powerBtn" onclick="togglePower()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/><line x1="12" y1="2" x2="12" y2="12"/>
+        </svg>
+        <span id="powerLabel">Power On</span>
+      </button>
+      <button class="btn btn-camera" id="cameraBtn" onclick="toggleCamera()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span id="cameraLabel">Live Cam</span>
+      </button>
+      <button class="btn" id="haltBtn" onclick="halt()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="6" y="6" width="12" height="12" rx="1"/>
+        </svg>
+        Halt
+      </button>
+      <button class="btn btn-run" id="runBtn" onclick="runAnalysis()">
+        <svg id="runIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span id="runLabel">Run Analysis</span>
+      </button>
+      <button class="btn" onclick="document.getElementById('file-input').click()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Upload
+      </button>
+      <button class="btn" onclick="openHistory()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        History
+      </button>
+      <input type="file" id="file-input" accept="image/*" onchange="onFileSelect(this)">
+    </div>
+
+    <div class="alert-banner">
+      <div class="alert-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div class="alert-text">
+        <strong>Clinical Advisory:</strong> Upload a skin image or use Live Cam, then click Run Analysis. AI results are indicative only — always verify with a qualified dermatologist.
+      </div>
+    </div>
+  </main>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">Diagnostic Report</div>
+      <div id="modelBadge" style="font-family:var(--mono);font-size:9px;color:var(--text-3);letter-spacing:.08em;">21-CLASS · EfficientNet-B4</div>
+    </div>
+    <div class="panel-idle" id="idlePanel">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A5E72" stroke-width="1.2">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+      </svg>
+      <div class="idle-label" id="idleText">Awaiting Analysis</div>
+    </div>
+    <div class="panel-body" id="panelBody" style="display:none;">
+      <div class="r-card">
+        <div class="r-label">Detected Condition</div>
+        <div class="condition-row">
+          <div id="resDot" class="status-dot blink"></div>
+          <div>
+            <div id="resName" class="condition-name">--</div>
+            <div id="resIcd" class="condition-sub">--</div>
+          </div>
+        </div>
+        <span id="resSeverity" class="severity-badge">--</span>
+      </div>
+
+      <div class="r-card">
+        <div class="r-label">Model Confidence</div>
+        <div class="conf-row">
+          <span class="conf-pct" id="resConfPct">0.0%</span>
+          <span style="font-family:var(--mono);font-size:9px;color:var(--text-3)">SOFTMAX OUTPUT</span>
+        </div>
+        <div class="conf-bar-track">
+          <div class="conf-bar-fill" id="resConfBar" style="width:0%"></div>
+        </div>
+        <div id="resDistribution" style="margin-top:7px;font-family:var(--mono);font-size:9px;color:var(--text-3);text-transform:uppercase;line-height:1.6">--</div>
+      </div>
+
+      <div id="remediesToggle" style="display:none;">
+        <button class="btn-remedies" onclick="openRemedies()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+          </svg>
+          View Remedies &amp; Home Care
+        </button>
+        <button class="btn-remedies" onclick="openProducts()" style="margin-top:8px;background:linear-gradient(135deg, rgba(16,185,129,.08), rgba(20,184,166,.05));border-color:var(--emerald);color:var(--emerald);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          Shop Products &amp; Compare Prices
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="remedies-overlay" id="remediesOverlay">
+  <div class="remedies-screen">
+    <div class="remedies-header">
+      <div class="remedies-header-left">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+        </svg>
+        <div>
+          <div class="remedies-title">Remedies &amp; Home Care</div>
+          <div class="remedies-subtitle" id="remConditionLabel">--</div>
+        </div>
+      </div>
+      <button class="btn-close-remedies" onclick="closeRemedies()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Back to Report
+      </button>
+    </div>
+    <div class="remedies-body" id="remediesBody"></div>
+  </div>
+</div>
+
+<div class="history-overlay" id="historyOverlay">
+  <div class="remedies-screen">
+    <div class="remedies-header">
+      <div class="remedies-header-left">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <div>
+          <div class="remedies-title">Analysis History</div>
+          <div class="remedies-subtitle" id="historyCount">0 sessions recorded</div>
+        </div>
+      </div>
+      <button class="btn-close-remedies" onclick="closeHistory()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Back
+      </button>
+    </div>
+    <div class="history-body" id="historyBody"></div>
+  </div>
+</div>
+
+<div class="products-overlay" id="productsOverlay">
+  <div class="remedies-screen">
+    <div class="remedies-header">
+      <div class="remedies-header-left">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+        <div>
+          <div class="remedies-title">Product Finder</div>
+          <div class="remedies-subtitle" id="productsSubtitle">Compare &amp; Buy</div>
+        </div>
+      </div>
+      <button class="btn-close-remedies" onclick="closeProducts()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Close
+      </button>
+    </div>
+    <div class="products-body" id="productsBody"></div>
+  </div>
+</div>
+
+<script>
+  const BACKEND_URL = "http://127.0.0.1:5000";
+  let powered = false, analyzing = false, selectedFile = null, coordInterval;
+  let cameraActive = false, localStream = null;
+  let lastReport = null;
+  const videoEl = document.getElementById('camera-stream');
+
+  // ── HISTORY ──────────────────────────────────────────────────────────────
+  function getHistory() {
+    try { return JSON.parse(localStorage.getItem("dermai_history")) || []; } catch { return []; }
+  }
+  function saveToHistory(entry) {
+    const hist = getHistory();
+    hist.unshift(entry);
+    if (hist.length > 50) hist.length = 50;
+    localStorage.setItem("dermai_history", JSON.stringify(hist));
+  }
+
+  // ── AUTH ──────────────────────────────────────────────────────────────────
+  function getAccounts() {
+    try { return JSON.parse(localStorage.getItem("dermai_accounts")) || []; } catch { return []; }
+  }
+  function saveAccounts(accounts) {
+    localStorage.setItem("dermai_accounts", JSON.stringify(accounts));
+  }
+
+  window.onload = function() {
+    if (localStorage.getItem("dermai_authenticated") === "true") {
+      document.getElementById("authGateway").classList.add("hidden");
+    }
+    document.getElementById("passwordInput").addEventListener("keyup", e => {
+      if (e.key === "Enter") handleAuthentication();
+    });
+    document.getElementById("regConfirm").addEventListener("keyup", e => {
+      if (e.key === "Enter") handleRegister();
+    });
+    document.getElementById("resetPassword").addEventListener("keyup", e => {
+      if (e.key === "Enter") handleReset();
+    });
+  };
+
+  function showOverlay(id) {
+    ['authGateway','registerOverlay','resetOverlay'].forEach(o => {
+      document.getElementById(o).classList.add('hidden');
+    });
+    document.getElementById(id).classList.remove('hidden');
+    ['authError','regError','resetError'].forEach(e => {
+      document.getElementById(e).style.display = 'none';
+    });
+    document.getElementById('resetSuccess').style.display = 'none';
+    const ae = document.getElementById('authError');
+    ae.style.color = ''; ae.style.background = ''; ae.style.borderColor = '';
+  }
+
+  function handleAuthentication() {
+    const u = document.getElementById("usernameInput").value.trim();
+    const e = document.getElementById("emailInput").value.trim();
+    const p = document.getElementById("passwordInput").value;
+    const errorBox = document.getElementById("authError");
+
+    const accounts = getAccounts();
+    const match = accounts.find(a => a.username.toLowerCase() === u.toLowerCase() && a.password === p);
+
+    if (match) {
+      localStorage.setItem("dermai_authenticated", "true");
+      localStorage.setItem("dermai_current_user", match.username);
+      document.getElementById("authGateway").classList.add("hidden");
+      errorBox.style.display = "none";
+    } else {
+      errorBox.style.display = "block";
+      errorBox.textContent = "Access Denied: Invalid credentials";
+      document.getElementById("passwordInput").value = "";
+    }
+  }
+
+  function handleRegister() {
+    const u = document.getElementById("regUsername").value.trim();
+    const e = document.getElementById("regEmail").value.trim();
+    const p = document.getElementById("regPassword").value;
+    const c = document.getElementById("regConfirm").value;
+    const errorBox = document.getElementById("regError");
+
+    if (!u || !e || !p) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "All fields are required";
+      return;
+    }
+    if (p !== c) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "Passwords do not match";
+      return;
+    }
+    if (p.length < 4) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "Password must be at least 4 characters";
+      return;
+    }
+
+    const accounts = getAccounts();
+    if (accounts.find(a => a.username.toLowerCase() === u.toLowerCase())) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "Username already exists";
+      return;
+    }
+    if (accounts.find(a => a.email.toLowerCase() === e.toLowerCase())) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "Email already registered";
+      return;
+    }
+
+    accounts.push({ username: u, email: e, password: p });
+    saveAccounts(accounts);
+    errorBox.style.display = "none";
+    document.getElementById("regUsername").value = "";
+    document.getElementById("regEmail").value = "";
+    document.getElementById("regPassword").value = "";
+    document.getElementById("regConfirm").value = "";
+    showOverlay("authGateway");
+    document.getElementById("authError").style.display = "block";
+    document.getElementById("authError").style.color = "var(--emerald)";
+    document.getElementById("authError").style.background = "rgba(16,185,129,0.08)";
+    document.getElementById("authError").style.borderColor = "rgba(16,185,129,0.2)";
+    document.getElementById("authError").textContent = "Account created! Please login.";
+  }
+
+  function handleReset() {
+    const e = document.getElementById("resetEmail").value.trim();
+    const u = document.getElementById("resetUsername").value.trim();
+    const p = document.getElementById("resetPassword").value;
+    const errorBox = document.getElementById("resetError");
+    const successBox = document.getElementById("resetSuccess");
+
+    if (!e || !u || !p) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "All fields are required";
+      successBox.style.display = "none";
+      return;
+    }
+    if (p.length < 4) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "Password must be at least 4 characters";
+      successBox.style.display = "none";
+      return;
+    }
+
+    const accounts = getAccounts();
+    const idx = accounts.findIndex(a => a.username.toLowerCase() === u.toLowerCase() && a.email.toLowerCase() === e.toLowerCase());
+
+    if (idx === -1) {
+      errorBox.style.display = "block";
+      errorBox.textContent = "No account found with that username and email";
+      successBox.style.display = "none";
+      return;
+    }
+
+    accounts[idx].password = p;
+    saveAccounts(accounts);
+    errorBox.style.display = "none";
+    successBox.style.display = "block";
+    successBox.textContent = "Password reset successful! You can now login.";
+    document.getElementById("resetEmail").value = "";
+    document.getElementById("resetUsername").value = "";
+    document.getElementById("resetPassword").value = "";
+  }
+
+  function handleLogout() {
+    stopCamera();
+    localStorage.removeItem("dermai_authenticated");
+    localStorage.removeItem("dermai_current_user");
+    document.getElementById("usernameInput").value = "";
+    document.getElementById("emailInput").value = "";
+    document.getElementById("passwordInput").value = "";
+    showOverlay("authGateway");
+  }
+
+  // ── CAMERA ────────────────────────────────────────────────────────────────
+  async function toggleCamera() {
+    if (!powered) togglePower();
+    const status = document.getElementById('vpStatus');
+    if (!cameraActive) {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } });
+        videoEl.srcObject = localStream;
+        videoEl.style.display = 'block';
+        document.getElementById('preview-img').style.display = 'none';
+        document.getElementById('dropZone').classList.add('hidden');
+        cameraActive = true;
+        document.getElementById('cameraBtn').classList.add('active-cam');
+        document.getElementById('cameraLabel').textContent = "Freeze / Capture";
+        status.textContent = "LIVE STREAM ACTIVE — POSITION AREA AND CAPTURE";
+        videoEl.onloadedmetadata = function() {
+          document.getElementById('coordBR').textContent = `LIVE ${this.videoWidth}×${this.videoHeight} · 30FPS`;
+        };
+      } catch (err) {
+        status.textContent = "CRITICAL: CAMERA ACCESS REJECTED";
+      }
+    } else {
+      captureSnapshot();
+    }
+  }
+
+  function captureSnapshot() {
+    const canvas = document.createElement('canvas');
+    canvas.width = videoEl.videoWidth || 640;
+    canvas.height = videoEl.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+      selectedFile = new File([blob], "live_capture.jpg", { type: "image/jpeg" });
+      const imgEl = document.getElementById('preview-img');
+      imgEl.src = URL.createObjectURL(selectedFile);
+      imgEl.style.display = 'block';
+      stopCamera();
+      document.getElementById('vpStatus').textContent = "CAPTURE RECORDED — READY FOR ANALYSIS";
+      document.getElementById('coordBR').textContent = `RES ${canvas.width}×${canvas.height} · captured`;
+    }, 'image/jpeg', 0.95);
+  }
+
+  function stopCamera() {
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    videoEl.style.display = 'none';
+    videoEl.srcObject = null;
+    cameraActive = false;
+    document.getElementById('cameraBtn').classList.remove('active-cam');
+    document.getElementById('cameraLabel').textContent = "Live Cam";
+  }
+
+  // ── POWER ────────────────────────────────────────────────────────────────
+  function togglePower() {
+    powered = !powered;
+    const btn = document.getElementById('powerBtn');
+    const label = document.getElementById('powerLabel');
+    const status = document.getElementById('vpStatus');
+    if (powered) {
+      btn.style.borderColor = '#14B8A6'; btn.style.color = '#14B8A6';
+      label.textContent = "Active";
+      status.textContent = selectedFile ? 'IMAGE LOADED — READY TO ANALYZE' : 'SYSTEM ACTIVE — READY';
+      animateCoords();
+    } else {
+      btn.style.borderColor = ''; btn.style.color = '';
+      label.textContent = "Power On";
+      status.textContent = 'STANDBY — AWAITING INPUT';
+      stopCamera(); clearInterval(coordInterval);
+    }
+  }
+
+  function animateCoords() {
+    clearInterval(coordInterval);
+    coordInterval = setInterval(() => {
+      if (!powered) return;
+      const x = Math.floor(Math.random()*200+400), y = Math.floor(Math.random()*150+300);
+      document.getElementById('coordTL').textContent = `X:${x}  Y:${y}`;
+    }, 600);
+  }
+
+  // ── ANALYSIS ─────────────────────────────────────────────────────────────
+  async function runAnalysis() {
+    if (cameraActive) {
+      captureSnapshot();
+      await new Promise(r => setTimeout(r, 350));
+    }
+    if (analyzing) return;
+    if (!selectedFile) {
+      document.getElementById('vpStatus').textContent = "ERROR: NO INPUT IMAGE LOADED";
+      return;
+    }
+    analyzing = true;
+    const vp = document.getElementById('viewport');
+    const runBtn = document.getElementById('runBtn');
+    const status = document.getElementById('vpStatus');
+
+    vp.classList.add('scanning');
+    runBtn.classList.add('analyzing');
+    document.getElementById('runIcon').innerHTML = `<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5" stroke-dasharray="31.4" stroke-dashoffset="15" class="spinner"/>`;
+    document.getElementById('runLabel').textContent = 'Analyzing…';
+    status.textContent = 'RUNNING INFERENCE PIPELINE — PLEASE WAIT';
+    document.getElementById('rawConfBadge').style.display = 'none';
+
+    if (!powered) togglePower();
+
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/analyze`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const report = await response.json();
+      renderReport(report);
+      status.textContent = 'ANALYSIS COMPLETE';
+
+      // Show raw confidence badge for debugging/verification
+      if (report.raw_confidence) {
+        const badge = document.getElementById('rawConfBadge');
+        badge.textContent = `RAW SOFTMAX: ${report.raw_confidence} · THRESHOLD: 5%`;
+        badge.style.display = 'block';
+      }
+    } catch (err) {
+      console.error(err);
+      status.textContent = 'PIPELINE ERROR — CHECK BACKEND CONNECTION';
+      document.getElementById('idleText').textContent = "Connection Error";
+    } finally {
+      vp.classList.remove('scanning');
+      runBtn.classList.remove('analyzing');
+      document.getElementById('runIcon').innerHTML = `<polygon points="5 3 19 12 5 21 5 3"/>`;
+      document.getElementById('runLabel').textContent = 'Run Analysis';
+      analyzing = false;
+    }
+  }
+
+  function renderReport(data) {
+    lastReport = data;
+    document.getElementById('idlePanel').classList.add('hidden');
+    document.getElementById('panelBody').style.display = 'flex';
+    document.getElementById('remediesToggle').style.display = 'block';
+
+    saveToHistory({
+      condition: data.condition_label,
+      conditionId: data.condition_id,
+      icd10: data.icd10,
+      icd10Desc: data.icd10_desc,
+      severity: data.severity,
+      color: data.color,
+      confidence: data.confidence_pct,
+      treatment: data.treatment,
+      notes: data.clinical_notes,
+      timestamp: new Date().toISOString()
+    });
+
+    const dot = document.getElementById('resDot');
+    dot.className = "status-dot blink " + (data.color === 'green' ? 'dot-green' : data.color === 'red' ? 'dot-red' : 'dot-amber');
+
+    document.getElementById('resName').textContent = data.condition_label;
+    document.getElementById('resIcd').textContent = `ICD-10 · ${data.icd10} — ${data.icd10_desc}`;
+
+    const sevBadge = document.getElementById('resSeverity');
+    if (data.severity) {
+      sevBadge.className = "severity-badge sev-" + data.severity.toLowerCase();
+      sevBadge.innerHTML = `<svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> ${data.severity} Severity`;
+    } else {
+      sevBadge.className = "sev-none";
+    }
+
+    document.getElementById('resConfPct').textContent = data.confidence_pct;
+    const bar = document.getElementById('resConfBar');
+    bar.style.width = data.confidence_pct;
+    bar.style.background = data.color === 'green'
+      ? 'linear-gradient(90deg, #065F46, var(--emerald))'
+      : data.color === 'red'
+        ? 'linear-gradient(90deg, #991B1B, var(--red))'
+        : 'linear-gradient(90deg, #B45309, var(--amber))';
+
+    let distText = `TOP: ${(data.condition_id || '').substring(0,22)}`;
+    if (data.next_classes && data.next_classes.length > 0) {
+      distText += '\n' + data.next_classes.map(c => `${c.name.substring(0,18)}: ${c.pct}%`).join(' · ');
+    }
+    document.getElementById('resDistribution').textContent = distText;
+
+    if (data.gradcam_b64) {
+      document.getElementById('preview-img').src = `data:image/png;base64,${data.gradcam_b64}`;
+    }
+  }
+
+  function halt() {
+    stopCamera(); analyzing = false; selectedFile = null;
+    document.getElementById('viewport').classList.remove('scanning');
+    document.getElementById('runBtn').classList.remove('analyzing');
+    document.getElementById('runIcon').innerHTML = `<polygon points="5 3 19 12 5 21 5 3"/>`;
+    document.getElementById('runLabel').textContent = 'Run Analysis';
+    document.getElementById('vpStatus').textContent = 'STANDBY — AWAITING INPUT';
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('dropZone').classList.remove('hidden');
+    document.getElementById('rawConfBadge').style.display = 'none';
+    document.getElementById('coordBR').textContent = 'RES --×-- · RGB';
+    document.getElementById('idlePanel').classList.remove('hidden');
+    document.getElementById('panelBody').style.display = 'none';
+    document.getElementById('idleText').textContent = 'Awaiting Analysis';
+    document.getElementById('file-input').value = '';
+    document.getElementById('remediesToggle').style.display = 'none';
+    lastReport = null;
+    closeRemedies();
+  }
+
+  function openRemedies() {
+    if (!lastReport) return;
+    const d = lastReport;
+    const overlay = document.getElementById('remediesOverlay');
+    document.getElementById('remConditionLabel').textContent = `${d.condition_label} · ${d.icd10}`;
+
+    const tagColors = { gentle: 'var(--teal)', otc: 'var(--teal)', rx: 'var(--amber)', consult: 'var(--amber)' };
+
+    let html = '';
+
+    // Treatment card
+    html += `<div class="rem-section full">
+      <div class="rem-section-header">
+        <div class="rem-section-icon teal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="rem-section-label">Prescribed Action / Treatment</div>
+      </div>
+      <div class="rem-treatment-box"><span class="rem-treatment-text">${d.treatment}</span></div>
+      <div class="rem-notes">${d.clinical_notes}</div>
+      ${d.referral ? `<div class="rem-referral"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.56 3.48 2 2 0 0 1 3.54 1H6.5a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.4a16 16 0 0 0 6 6l.38-.38a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 16.92z"/></svg><div class="referral-text"><strong>Dermatologist Referral Advised.</strong> ${d.referral_msg || ''}</div></div>` : ''}
+    </div>`;
+
+    // Home Remedies
+    if (d.home_remedies && d.home_remedies.length) {
+      html += `<div class="rem-section full">
+        <div class="rem-section-header">
+          <div class="rem-section-icon green"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg></div>
+          <div class="rem-section-label">Home Remedies &amp; Natural Treatments</div>
+        </div>
+        <ul class="rem-list teal">${d.home_remedies.map(r => `<li>${r}</li>`).join('')}</ul>
+      </div>`;
+    }
+
+    // Diet & Nutrition
+    if (d.diet && d.diet.length) {
+      html += `<div class="rem-section">
+        <div class="rem-section-header">
+          <div class="rem-section-icon amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+          <div class="rem-section-label">Diet &amp; Nutrition</div>
+        </div>
+        <ul class="rem-list amber">${d.diet.map(r => `<li>${r}</li>`).join('')}</ul>
+      </div>`;
+    }
+
+    // Precautions
+    if (d.precautions && d.precautions.length) {
+      html += `<div class="rem-section">
+        <div class="rem-section-header">
+          <div class="rem-section-icon teal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <div class="rem-section-label">Precautions &amp; Care Tips</div>
+        </div>
+        <ul class="rem-list teal">${d.precautions.map(r => `<li>${r}</li>`).join('')}</ul>
+      </div>`;
+    }
+
+    // Things to Avoid
+    if (d.avoid && d.avoid.length) {
+      html += `<div class="rem-section">
+        <div class="rem-section-header">
+          <div class="rem-section-icon red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+          <div class="rem-section-label">Things to Avoid</div>
+        </div>
+        <ul class="rem-list red">${d.avoid.map(r => `<li>${r}</li>`).join('')}</ul>
+      </div>`;
+    }
+
+    // Products
+    if (d.products && d.products.length) {
+      html += `<div class="rem-section full">
+        <div class="rem-section-header">
+          <div class="rem-section-icon teal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+          <div class="rem-section-label">Recommended Products / Formulary</div>
+        </div>
+        <div class="rem-product-grid">${d.products.map(p => `
+          <div class="rem-product">
+            <div><div class="rem-product-name">${p.name}</div><div class="rem-product-type">${p.type}</div></div>
+            <span class="product-tag tag-${p.tag.toLowerCase()}">${p.tag}</span>
+          </div>`).join('')}
+        </div>
+        <div style="margin-top:16px;">
+          <button class="btn-remedies" onclick="closeRemedies(); openProducts();" style="width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 16px;background:linear-gradient(135deg, rgba(16,185,129,.12), rgba(20,184,166,.08));border:1px solid var(--emerald);border-radius:5px;color:var(--emerald);font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            Shop Products &amp; Compare Prices
+          </button>
+        </div>
+      </div>`;
+    }
+
+    document.getElementById('remediesBody').innerHTML = html;
+    overlay.classList.add('open');
+  }
+
+  function closeRemedies() {
+    document.getElementById('remediesOverlay').classList.remove('open');
+  }
+
+  function openHistory() {
+    const hist = getHistory();
+    const body = document.getElementById('historyBody');
+    document.getElementById('historyCount').textContent = `${hist.length} session${hist.length !== 1 ? 's' : ''} recorded`;
+
+    if (hist.length === 0) {
+      body.innerHTML = `<div class="history-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4A5E72" stroke-width="1.2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <div class="history-empty-label">No analyses yet</div>
+      </div>`;
+    } else {
+      body.innerHTML = `<div class="history-grid">${hist.map((h, i) => {
+        const dt = new Date(h.timestamp);
+        const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const sev = h.severity || 'Healthy';
+        const sevClass = h.severity ? 'sev-' + h.severity.toLowerCase() : 'sev-none';
+        const confNum = parseFloat(h.confidence);
+        return `<div class="history-card" onclick="viewHistoryDetail(${i})">
+          <div class="history-card-top">
+            <div class="history-card-dot ${h.color === 'green' ? 'dot-green' : h.color === 'red' ? 'dot-red' : 'dot-amber'}"></div>
+            <div class="history-card-date">${dateStr} · ${timeStr}</div>
+          </div>
+          <div class="history-card-label">${h.condition}</div>
+          <div class="history-card-icd">ICD-10 · ${h.icd10}</div>
+          <div class="history-card-conf">
+            <span class="history-card-conf-pct">${h.confidence}</span>
+            <div class="history-card-conf-track"><div class="history-card-conf-fill" style="width:${confNum}%"></div></div>
+          </div>
+          <span class="history-card-sev ${sevClass}">${sev}</span>
+        </div>`;
+      }).join('')}</div>`;
+    }
+    document.getElementById('historyOverlay').classList.add('open');
+  }
+
+  function viewHistoryDetail(index) {
+    const hist = getHistory();
+    if (index >= hist.length) return;
+    const h = hist[index];
+    lastReport = {
+      condition_label: h.condition,
+      condition_id: h.conditionId,
+      icd10: h.icd10,
+      icd10_desc: h.icd10Desc,
+      severity: h.severity,
+      color: h.color,
+      confidence_pct: h.confidence,
+      treatment: h.treatment,
+      clinical_notes: h.notes,
+      home_remedies: [], diet: [], precautions: [], avoid: [],
+      products: [], referral: false, referral_msg: '', gradcam_b64: null,
+      raw_confidence: h.confidence
+    };
+    closeHistory();
+    document.getElementById('idlePanel').classList.add('hidden');
+    document.getElementById('panelBody').style.display = 'flex';
+    document.getElementById('remediesToggle').style.display = 'none';
+
+    const dot = document.getElementById('resDot');
+    dot.className = "status-dot blink " + (h.color === 'green' ? 'dot-green' : h.color === 'red' ? 'dot-red' : 'dot-amber');
+    document.getElementById('resName').textContent = h.condition;
+    document.getElementById('resIcd').textContent = `ICD-10 · ${h.icd10} — ${h.icd10Desc}`;
+    const sevBadge = document.getElementById('resSeverity');
+    if (h.severity) {
+      sevBadge.className = "severity-badge sev-" + h.severity.toLowerCase();
+      sevBadge.innerHTML = `<svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> ${h.severity} Severity`;
+    } else {
+      sevBadge.className = "sev-none";
+    }
+    document.getElementById('resConfPct').textContent = h.confidence;
+    const bar = document.getElementById('resConfBar');
+    bar.style.width = h.confidence;
+    bar.style.background = h.color === 'green'
+      ? 'linear-gradient(90deg, #065F46, var(--emerald))'
+      : h.color === 'red'
+        ? 'linear-gradient(90deg, #991B1B, var(--red))'
+        : 'linear-gradient(90deg, #B45309, var(--amber))';
+    document.getElementById('resDistribution').textContent = `TOP: ${(h.conditionId || '').substring(0,22)}`;
+    document.getElementById('vpStatus').textContent = `HISTORY VIEW`;
+  }
+
+  function closeHistory() {
+    document.getElementById('historyOverlay').classList.remove('open');
+  }
+
+  // ── PRODUCTS ─────────────────────────────────────────────────────────────
+  let productConditionId = '';
+
+  function openProducts() {
+    if (!lastReport) return;
+    productConditionId = lastReport.condition_id;
+    document.getElementById('productsSubtitle').textContent = lastReport.condition_label;
+    const body = document.getElementById('productsBody');
+    body.innerHTML = `<div class="compare-loading"><svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="15"/></svg> Loading products...</div>`;
+    document.getElementById('productsOverlay').classList.add('open');
+
+    fetch(`${BACKEND_URL}/api/products?condition_id=${encodeURIComponent(productConditionId)}`)
+      .then(r => r.json())
+      .then(data => {
+        window._allProducts = data.products;
+        showCategories(data.categories, data.products);
+      })
+      .catch(() => {
+        body.innerHTML = `<div class="compare-loading" style="color:var(--red);">Failed to load products. Check backend connection.</div>`;
+      });
+  }
+
+  function showCategories(categories, allProducts) {
+    const body = document.getElementById('productsBody');
+    const catCounts = {};
+    allProducts.forEach(p => { catCounts[p.category] = (catCounts[p.category] || 0) + 1; });
+    body.innerHTML = `
+      <div class="products-breadcrumb">
+        <span class="bc-active">Product Categories</span>
+      </div>
+      <div class="cat-grid">
+        ${categories.map(c => `
+          <div class="cat-card" onclick="loadCategoryProducts('${c.replace(/'/g, "\\'")}')">
+            <div class="cat-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </div>
+            <div class="cat-name">${c}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text-3);">${catCounts[c] || 0} products</div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  function loadCategoryProducts(category) {
+    const body = document.getElementById('productsBody');
+    const products = window._allProducts.filter(p => p.category === category);
+    body.innerHTML = `
+      <div class="products-breadcrumb">
+        <span class="bc-link" onclick="openProducts()" style="cursor:pointer;color:var(--teal);">Categories</span>
+        <span class="bc-sep">&rsaquo;</span>
+        <span class="bc-active">${category}</span>
+      </div>
+      <button class="back-btn" onclick="openProducts()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        All Categories
+      </button>
+      <div class="product-list">
+        ${products.map(p => `
+          <div class="product-row">
+            <div class="product-store-badge" style="background:var(--teal);">${p.brand}</div>
+            <div class="product-info">
+              <div class="product-title">${p.name}</div>
+              <div class="product-desc">${p.type}</div>
+            </div>
+            <button class="btn-compare" onclick="compareProduct('${p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${p.amazon.replace(/'/g, "\\'")}', '${p.flipkart.replace(/'/g, "\\'")}', '${p.nykaa.replace(/'/g, "\\'")}')">Compare Prices</button>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <a class="btn-buy" href="${p.amazon}" target="_blank" rel="noopener" style="background:rgba(255,153,0,.12);border-color:#FF9900;color:#FF9900;">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Amazon
+              </a>
+              <a class="btn-buy" href="${p.flipkart}" target="_blank" rel="noopener" style="background:rgba(40,116,240,.12);border-color:#2874F0;color:#2874F0;">
+                Flipkart
+              </a>
+              <a class="btn-buy" href="${p.nykaa}" target="_blank" rel="noopener" style="background:rgba(252,39,121,.12);border-color:#FC2779;color:#FC2779;">
+                Nykaa
+              </a>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  function compareProduct(name, amzUrl, fkUrl, nkUrl) {
+    const body = document.getElementById('productsBody');
+    body.innerHTML = `
+      <div class="products-breadcrumb">
+        <span class="bc-link" onclick="openProducts()" style="cursor:pointer;color:var(--teal);">Categories</span>
+        <span class="bc-sep">&rsaquo;</span>
+        <span class="bc-active">Price Comparison</span>
+      </div>
+      <button class="back-btn" onclick="openProducts()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Products
+      </button>
+      <div style="margin-bottom:20px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--text-1);">
+        Comparing: <span style="color:var(--teal);">${name}</span>
+      </div>
+      <div class="compare-grid">
+        <div class="compare-store">
+          <div class="compare-store-header">
+            <div class="compare-store-name" style="color:#FF9900;">Amazon</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-2);line-height:1.5;">Browse this product on Amazon India for the latest prices, ratings, and delivery options.</div>
+          <a class="btn-buy" href="${amzUrl}" target="_blank" rel="noopener" style="background:rgba(255,153,0,.15);border-color:#FF9900;color:#FF9900;margin-top:8px;justify-content:center;">
+            View on Amazon
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="compare-store">
+          <div class="compare-store-header">
+            <div class="compare-store-name" style="color:#2874F0;">Flipkart</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-2);line-height:1.5;">Check Flipkart for competitive pricing, EMI options, and exclusive Flipkart Plus deals.</div>
+          <a class="btn-buy" href="${fkUrl}" target="_blank" rel="noopener" style="background:rgba(40,116,240,.15);border-color:#2874F0;color:#2874F0;margin-top:8px;justify-content:center;">
+            View on Flipkart
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="compare-store">
+          <div class="compare-store-header">
+            <div class="compare-store-name" style="color:#FC2779;">Nykaa</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-2);line-height:1.5;">Nykaa offers authentic beauty products with detailed reviews and expert recommendations.</div>
+          <a class="btn-buy" href="${nkUrl}" target="_blank" rel="noopener" style="background:rgba(252,39,121,.15);border-color:#FC2779;color:#FC2779;margin-top:8px;justify-content:center;">
+            View on Nykaa
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </div>`;
+  }
+
+  function closeProducts() {
+    document.getElementById('productsOverlay').classList.remove('open');
+  }
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    stopCamera();
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    const img = document.getElementById('preview-img');
+    img.src = url; img.style.display = 'block';
+    document.getElementById('dropZone').classList.add('hidden');
+    document.getElementById('vpStatus').textContent = 'IMAGE LOADED — READY TO ANALYZE';
+    img.onload = function() {
+      document.getElementById('coordBR').textContent = `RES ${this.naturalWidth}×${this.naturalHeight} · RGB`;
+    };
+    if (!powered) togglePower();
+  }
+
+  function onFileSelect(input) { if (input.files && input.files[0]) handleFile(input.files[0]); }
+  function onDragOver(e) { e.preventDefault(); }
+  function onDrop(e) { e.preventDefault(); if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+model_output_index,dermnet_class_index,class_name
+0,0,Acne and Rosacea Photos
+1,1,Actinic Keratosis Basal Cell Carcinoma and other Malignant Lesions
+2,2,Atopic Dermatitis Photos
+3,3,Bullous Disease Photos
+4,4,Cellulitis Impetigo and other Bacterial Infections
+5,5,Eczema Photos
+6,6,Exanthems and Drug Eruptions
+7,7,Hair Loss Photos Alopecia and other Hair Diseases
+-1,-1,(no class / phantom)
+8,8,Herpes HPV and other STDs Photos
+9,9,Light Diseases and Disorders of Pigmentation
+10,10,Lupus and other Connective Tissue diseases
+11,11,Melanoma Skin Cancer Nevi and Moles
+12,12,Nail Fungus and other Nail Disease
+13,13,Poison Ivy Photos and other Contact Dermatitis
+14,14,Psoriasis pictures Lichen Planus and related diseases
+15,15,Scabies Lyme Disease and other Infestations and Bites
+16,16,Seborrheic Keratoses and other Benign Tumors
+17,17,Systemic Disease
+18,18,Tinea Ringworm Candidiasis and other Fungal Infections
+19,19,Urticaria Hives
+20,20,Vascular Tumors
+21,21,Vasculitis Photos
+22,22,Warts Molluscum and other Viral Infections
